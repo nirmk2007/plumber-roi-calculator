@@ -4,8 +4,8 @@
 window.CALC_CONFIG = {
   // Supabase project URL and publishable key (Project Settings, API). Leave empty until set up;
   // the form then tells the visitor it is not connected yet.
-  SUPABASE_URL: "",
-  SUPABASE_KEY: "",
+  SUPABASE_URL: "https://mqtsgxknzgrzhzxwmnpw.supabase.co",
+  SUPABASE_KEY: "sb_publishable_KXkk_x5TIEIaB0auOlJ-Rw_bIundvvw",
 
   // The voice agent demo people are invited to try.
   DEMO_URL: "https://plumber-voice-agent-1054654001858.us-central1.run.app",
