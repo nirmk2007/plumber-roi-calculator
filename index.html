@@ -115,6 +115,8 @@
   .thanks { background: var(--pipe-soft); border-radius: 12px; padding: 20px; }
   .thanks h3 { font-size: 28px; margin-bottom: 6px; }
   .thanks p { margin: 6px 0 0; }
+  .coderow { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 14px 0 6px; }
+  .coderow code { font-size: 22px; font-weight: 700; letter-spacing: .08em; padding: 10px 14px; background: #fff; border: 1px dashed currentColor; border-radius: 8px; user-select: all; word-break: break-all; }
 
   .mini { display: none; }
   footer { color: var(--muted); font-size: 13.5px; padding: 8px 0 40px; max-width: 70ch; }
@@ -251,7 +253,9 @@
     <div class="thanks" id="thanks" hidden>
       <h3>Thanks, you are on the list.</h3>
       <p id="thanks-msg">We will email your invite code shortly.</p>
-      <p>When it arrives, open <a id="demo-link" href="#" target="_blank" rel="noopener">the voice agent demo</a>, create an account with your code, and click Talk in browser.</p>
+      <div id="code-row" class="coderow" hidden><code id="code-val"></code><button type="button" class="btn" id="code-copy">Copy code</button></div>
+      <p id="thanks-next">When it arrives, open <a id="demo-link" href="#" target="_blank" rel="noopener">the voice agent demo</a>, create an account with your code, and click Talk in browser.</p>
+      <p id="demo-btn-row" hidden><a class="btn" id="demo-link2" href="#" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none">Open the voice agent demo</a></p>
     </div>
   </section>
 
@@ -275,6 +279,7 @@
 
   if (cfg.BRAND) $("brand").textContent = cfg.BRAND;
   $("demo-link").href = cfg.DEMO_URL || "#";
+  $("demo-link2").href = cfg.DEMO_URL || "#";
 
   function clamp(v, lo, hi) { v = Number(v); if (!isFinite(v)) v = 0; return Math.min(hi, Math.max(lo, v)); }
   var limits = { calls: [0, 500], missed: [0, 100], job: [0, 20000], real: [0, 100], pickup: [0, 100], book: [0, 100], cost: [0, 5000] };
@@ -369,24 +374,59 @@
       results: { month_revenue: Math.round(last.r.monthRevenue), year_revenue: Math.round(last.r.yearRevenue), jobs_month: Math.round(last.r.bookMonth * 10) / 10, net_month: Math.round(last.r.net) },
       source: cfg.SOURCE || "roi-calculator"
     };
-    fetch(cfg.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/roi_leads", {
+    // Preferred path: our own function saves the lead and returns the invite code, so the code is
+    // never in the page files. If the function is not deployed (404), save straight to Supabase and
+    // fall back to "we will email your code".
+    function direct() {
+      return fetch(cfg.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/roi_leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": cfg.SUPABASE_KEY, "Prefer": "return=minimal" },
+        body: JSON.stringify(body)
+      }).then(function (res) {
+        if (!res.ok) throw new Error("status " + res.status);
+        return null;
+      });
+    }
+    fetch("/api/lead", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "apikey": cfg.SUPABASE_KEY, "Prefer": "return=minimal" },
-      body: JSON.stringify(body)
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.assign({}, body, { website: $("f-web").value }))
     }).then(function (res) {
+      if (res.status === 404 || res.status === 405) return direct();
       if (!res.ok) throw new Error("status " + res.status);
-      showThanks();
+      return res.json().then(function (d) { return d && d.code ? d.code : null; });
+    }).then(function (code) {
+      showThanks(code);
     }).catch(function () {
       btn.disabled = false; btn.textContent = "Send me the demo invite";
       fail("Something went wrong and your details were not sent. Check your connection and try again.");
     });
   });
 
-  function showThanks() {
+  function showThanks(code) {
     form.hidden = true;
     $("thanks").hidden = false;
-    $("thanks-msg").textContent = "We will email your invite code to " + $("f-email").value.trim() + " shortly.";
+    if (code) {
+      $("thanks-msg").textContent = "Here is your invite code. Copy it, then open the demo and paste it when you create your account.";
+      $("code-row").hidden = false;
+      $("code-val").textContent = code;
+      $("thanks-next").hidden = true;
+      $("demo-btn-row").hidden = false;
+    } else {
+      $("thanks-msg").textContent = "We will email your invite code to " + $("f-email").value.trim() + " shortly.";
+    }
     $("thanks").scrollIntoView({ block: "nearest" });
+  }
+
+  $("code-copy").addEventListener("click", function () {
+    var c = $("code-val").textContent, done = function () { $("code-copy").textContent = "Copied"; };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(c).then(done, function () { selectCode(); });
+    else selectCode();
+  });
+  function selectCode() {
+    var r = document.createRange(); r.selectNodeContents($("code-val"));
+    var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    $("code-copy").textContent = "Press Ctrl+C";
   }
 })();
 </script>

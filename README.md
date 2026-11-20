@@ -30,9 +30,15 @@ Leads are readable only in the Supabase dashboard. The public key cannot read, c
 
 It is static files, so any static host works: Cloudflare Pages, Netlify, GitHub Pages, or a Cloud Storage bucket. Upload the folder (or connect the repo), then share the link. Add your own domain there if you want one.
 
-## Following up on a lead
+## Invite code (Netlify function)
 
-The form promises an invite code by email. The voice agent's sign-up needs its invite code (`ACCESS_CODE` on the voice agent's Cloud Run service), so send it manually, or reply with a link. Do not publish the code on this page.
+After a visitor submits the form, `netlify/functions/lead.mjs` (served at `/api/lead`) saves the lead and returns the voice agent's invite code, which the thank-you page shows with a Copy button. The code is never in the page files.
+
+Setup on Netlify (the site must deploy from this GitHub repo so the function is built):
+1. Project configuration, Environment variables, add `INVITE_CODE` with the same value as `ACCESS_CODE` on the voice agent's Cloud Run service.
+2. Redeploy. Without `INVITE_CODE`, or where the function is not deployed, the page falls back to "we will email your code" and you send it by hand.
+
+To change the code: update `ACCESS_CODE` on Cloud Run and `INVITE_CODE` on Netlify, then redeploy. Anyone who submits the form (even with a fake email) receives the code; there is no rate limiting.
 
 ## Limits
 
