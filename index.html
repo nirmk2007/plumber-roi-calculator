@@ -235,7 +235,7 @@
 
   <section class="card cta" id="demo" aria-labelledby="ct">
     <h2 id="ct">Hear it answer a plumbing question</h2>
-    <p class="lead">Try our working voice agent. Ask it about drain cleaning prices, opening hours or an emergency, then ask something it cannot answer and watch it take a callback request. Fill in your details to get an invite code right away.</p>
+    <p class="lead">Try our working voice agent. Ask it about drain cleaning prices, opening hours or an emergency, then ask something it cannot answer and watch it take a callback request. Fill in your details and we set up your demo account, then take you straight to the call screen.</p>
 
     <form id="lead-form" novalidate>
       <div class="form-grid">
@@ -253,7 +253,8 @@
     <div class="thanks" id="thanks" hidden>
       <h3>Thanks, you are on the list.</h3>
       <p id="thanks-msg">We will email your invite code shortly.</p>
-      <div id="code-row" class="coderow" hidden><code id="code-val"></code><button type="button" class="btn" id="code-copy">Copy code</button></div>
+      <p id="pw-label" hidden style="margin-top:14px">Your password, in case you want to sign in again later (we cannot show it again):</p>
+      <div id="code-row" class="coderow" hidden><code id="code-val"></code><button type="button" class="btn" id="code-copy">Copy password</button></div>
       <p id="thanks-next">When it arrives, open <a id="demo-link" href="#" target="_blank" rel="noopener">the voice agent demo</a>, create an account with your code, and click Talk in browser.</p>
       <p id="demo-btn-row" hidden><a class="btn" id="demo-link2" href="#" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none">Open the voice agent demo</a></p>
     </div>
@@ -374,9 +375,10 @@
       results: { month_revenue: Math.round(last.r.monthRevenue), year_revenue: Math.round(last.r.yearRevenue), jobs_month: Math.round(last.r.bookMonth * 10) / 10, net_month: Math.round(last.r.net) },
       source: cfg.SOURCE || "roi-calculator"
     };
-    // Preferred path: our own function saves the lead and returns the invite code, so the code is
-    // never in the page files. If the function is not deployed (404), save straight to Supabase and
-    // fall back to "we will email your code".
+    // Preferred path: our own function saves the lead, creates the visitor's demo account (the invite
+    // code stays on the server) and returns a session, so the button below opens the call screen
+    // already signed in. If the function is not deployed (404), save straight to Supabase and fall
+    // back to "we will email your code".
     function direct() {
       return fetch(cfg.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/roi_leads", {
         method: "POST",
@@ -394,22 +396,35 @@
     }).then(function (res) {
       if (res.status === 404 || res.status === 405) return direct();
       if (!res.ok) throw new Error("status " + res.status);
-      return res.json().then(function (d) { return d && d.code ? d.code : null; });
-    }).then(function (code) {
-      showThanks(code);
+      return res.json();
+    }).then(function (d) {
+      showThanks(d);
     }).catch(function () {
       btn.disabled = false; btn.textContent = "Send me the demo invite";
       fail("Something went wrong and your details were not sent. Check your connection and try again.");
     });
   });
 
-  function showThanks(code) {
+  function showThanks(d) {
+    d = d || {};
+    var demo = (d.demo_url || cfg.DEMO_URL || "#").replace(/\/$/, "");
     form.hidden = true;
     $("thanks").hidden = false;
-    if (code) {
-      $("thanks-msg").textContent = "Here is your invite code. Copy it, then open the demo and paste it when you create your account.";
-      $("code-row").hidden = false;
-      $("code-val").textContent = code;
+    if (d.account === "created" && d.token) {
+      $("thanks-msg").textContent = "Your demo account is ready. Open the voice agent and you will be signed in as " + $("f-email").value.trim() + ".";
+      $("demo-link2").href = demo + "/#token=" + encodeURIComponent(d.token);
+      $("pw-label").hidden = false; $("code-row").hidden = false; $("code-val").textContent = d.password || "";
+      $("thanks-next").hidden = true;
+      $("demo-btn-row").hidden = false;
+    } else if (d.account === "created_no_session") {
+      $("thanks-msg").textContent = "Your demo account is ready. Open the voice agent and sign in with " + $("f-email").value.trim() + " and the password below.";
+      $("demo-link2").href = demo;
+      $("pw-label").hidden = false; $("code-row").hidden = false; $("code-val").textContent = d.password || "";
+      $("thanks-next").hidden = true;
+      $("demo-btn-row").hidden = false;
+    } else if (d.account === "exists") {
+      $("thanks-msg").textContent = "You already have a demo account with " + $("f-email").value.trim() + ". Open the voice agent and sign in with your password.";
+      $("demo-link2").href = demo;
       $("thanks-next").hidden = true;
       $("demo-btn-row").hidden = false;
     } else {
