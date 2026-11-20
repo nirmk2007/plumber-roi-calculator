@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Missed-Call Calculator for Plumbers</title>
+<meta name="description" content="See how much extra revenue an AI voice agent could capture from the calls you miss while you are on a job.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23B8582A'/%3E%3Cpath d='M9 20V12a3 3 0 0 1 6 0v8M15 16h8' stroke='white' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+  /* Layout: inputs on the left, a sticky result panel on the right; one column on phones. */
+  :root {
+    --bg: #F2F4F5;
+    --surface: #FFFFFF;
+    --ink: #14232B;
+    --muted: #51636D;
+    --line: #D5DDE1;
+    --copper: #B8582A;
+    --copper-ink: #FFFFFF;
+    --copper-soft: #F6E4DA;
+    --pipe: #1D6B73;
+    --pipe-soft: #DCEEEF;
+    --danger: #A32D2D;
+    --focus: #1D6B73;
+    --font-display: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+    --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0F1A20;
+      --surface: #182730;
+      --ink: #E8EEF1;
+      --muted: #9DB0BA;
+      --line: #2C404B;
+      --copper: #E08A5B;
+      --copper-ink: #1A0E07;
+      --copper-soft: #3A2418;
+      --pipe: #5CC0C9;
+      --pipe-soft: #183A40;
+      --danger: #F09595;
+      --focus: #5CC0C9;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.55;
+         padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing: 0.01em; line-height: 1.1; margin: 0; text-wrap: balance; }
+  a { color: var(--pipe); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+
+  header.top { display: flex; align-items: center; gap: 10px; padding: 20px 0 8px; color: var(--muted); font-size: 14px; font-weight: 500; }
+  header.top svg { flex: none; }
+  .hero { padding: 20px 0 28px; max-width: 760px; }
+  .hero h1 { font-size: clamp(36px, 6vw, 60px); font-weight: 700; }
+  .hero p { margin: 14px 0 0; font-size: 18px; color: var(--muted); max-width: 60ch; }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 380px); gap: 28px; align-items: start; padding-bottom: 32px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
+  .card + .card { margin-top: 20px; }
+  .group-title { font-size: 26px; margin-bottom: 4px; }
+  .group-note { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+
+  .field { padding: 14px 0; border-top: 1px solid var(--line); }
+  .field:first-of-type { border-top: 0; }
+  .field-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .field label { font-weight: 600; font-size: 15px; }
+  .hint { color: var(--muted); font-size: 13.5px; margin: 2px 0 8px; }
+  .num { display: inline-flex; align-items: center; gap: 4px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; }
+  .num input { width: 5.2ch; border: 0; background: transparent; color: var(--ink); font: 600 17px var(--font-body); text-align: right; padding: 2px 0; font-variant-numeric: tabular-nums; }
+  .num input:focus-visible { outline: none; }
+  .num:focus-within { border-color: var(--focus); box-shadow: 0 0 0 2px var(--focus); }
+  .num span { color: var(--muted); font-size: 15px; }
+  input[type=range] { width: 100%; accent-color: var(--copper); margin: 6px 0 0; height: 28px; }
+
+  .results { position: sticky; top: 16px; border-color: var(--copper); border-width: 2px; }
+  .kicker { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .big { font-family: var(--font-display); font-weight: 700; font-size: clamp(56px, 9vw, 80px); line-height: 1; color: var(--copper); margin: 6px 0 2px; font-variant-numeric: tabular-nums; }
+  .big small { font-size: 0.4em; font-weight: 600; color: var(--muted); }
+  .year { color: var(--muted); margin: 0 0 18px; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 18px; }
+  .stat { background: var(--bg); border-radius: 10px; padding: 12px; }
+  .stat b { display: block; font-family: var(--font-display); font-size: 28px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 13px; color: var(--muted); }
+  .stat.good b { color: var(--pipe); }
+
+  table.funnel { width: 100%; border-collapse: collapse; font-size: 14.5px; margin: 0 0 6px; }
+  table.funnel th { text-align: left; font-weight: 600; color: var(--muted); font-size: 13px; padding: 0 0 6px; }
+  table.funnel td { padding: 8px 0; border-top: 1px solid var(--line); }
+  table.funnel td:last-child, table.funnel th:last-child { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .bar { height: 8px; border-radius: 4px; background: var(--pipe-soft); margin-top: 6px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--pipe); width: 0; transition: width .25s ease; }
+  @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+  .fine { font-size: 13px; color: var(--muted); margin: 14px 0 0; }
+
+  .cta { margin-top: 8px; border-color: var(--pipe); border-width: 2px; }
+  .cta h2 { font-size: clamp(28px, 4.5vw, 40px); }
+  .cta .lead { color: var(--muted); margin: 8px 0 18px; max-width: 62ch; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  .form-grid label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .form-grid input[type=text], .form-grid input[type=email], .form-grid input[type=tel] {
+    width: 100%; font: 16px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 11px 12px; }
+  .form-grid input:focus-visible { outline: 3px solid var(--focus); outline-offset: 0; border-color: var(--focus); }
+  .consent { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--muted); }
+  .consent input { margin-top: 4px; width: 18px; height: 18px; accent-color: var(--copper); flex: none; }
+  .btn { font: 600 17px var(--font-body); background: var(--copper); color: var(--copper-ink); border: 0; border-radius: 10px; padding: 14px 22px; cursor: pointer; min-height: 48px; }
+  .btn:hover { filter: brightness(1.06); }
+  .btn[disabled] { opacity: .6; cursor: wait; }
+  .err { color: var(--danger); font-size: 14px; margin: 10px 0 0; min-height: 1.2em; }
+  .hp { position: absolute; left: -5000px; width: 1px; height: 1px; overflow: hidden; }
+  .thanks { background: var(--pipe-soft); border-radius: 12px; padding: 20px; }
+  .thanks h3 { font-size: 28px; margin-bottom: 6px; }
+  .thanks p { margin: 6px 0 0; }
+
+  .mini { display: none; }
+  footer { color: var(--muted); font-size: 13.5px; padding: 8px 0 40px; max-width: 70ch; }
+
+  @media (max-width: 860px) {
+    .grid { grid-template-columns: minmax(0, 1fr); }
+    .results { position: static; }
+    .form-grid { grid-template-columns: 1fr; }
+    .mini { display: flex; position: sticky; bottom: 0; justify-content: space-between; align-items: center; gap: 12px;
+            background: var(--surface); border-top: 2px solid var(--copper); margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+            padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); z-index: 5; }
+    .mini b { font-family: var(--font-display); font-size: 30px; color: var(--copper); line-height: 1; font-variant-numeric: tabular-nums; }
+    .mini a { font-weight: 600; font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="var(--copper)"/><path d="M9 20V12a3 3 0 0 1 6 0v8M15 16h8" stroke="var(--copper-ink)" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+    <span id="brand">AI voice agent for plumbers</span>
+  </header>
+
+  <section class="hero">
+    <h1>What are missed calls costing your plumbing business?</h1>
+    <p>When you are under a sink, the phone rings out and the customer calls the next plumber. Enter your numbers to see how much extra revenue an AI voice agent could win back. It takes about 30 seconds.</p>
+  </section>
+
+  <main class="grid">
+    <div>
+      <section class="card" aria-labelledby="g1">
+        <h2 class="group-title" id="g1">Your business</h2>
+        <p class="group-note">Use your own figures. Rough numbers are fine.</p>
+
+        <div class="field">
+          <div class="field-head"><label for="calls">Calls you get per week</label>
+            <span class="num"><input id="calls" type="number" inputmode="numeric" min="1" max="500" step="1"></span></div>
+          <p class="hint">Customer calls on your business line, answered or not.</p>
+          <input type="range" id="calls-r" min="5" max="200" step="1" aria-label="Calls per week slider">
+        </div>
+
+        <div class="field">
+          <div class="field-head"><label for="missed">Share of calls you miss</label>
+            <span class="num"><input id="missed" type="number" inputmode="numeric" min="0" max="100" step="1"><span>%</span></span></div>
+          <p class="hint">On jobs, driving, at lunch, or after hours.</p>
+          <input type="range" id="missed-r" min="0" max="70" step="1" aria-label="Share of calls missed slider">
+        </div>
+
+        <div class="field">
+          <div class="field-head"><label for="job">Average value of a job</label>
+            <span class="num"><span>$</span><input id="job" type="number" inputmode="numeric" min="0" max="20000" step="10"></span></div>
+          <p class="hint">Typical invoice for a repair or call-out.</p>
+          <input type="range" id="job-r" min="80" max="2000" step="10" aria-label="Average job value slider">
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="g2">
+        <h2 class="group-title" id="g2">Assumptions you can change</h2>
+        <p class="group-note">Our starting guesses. Lower them if you want a cautious estimate.</p>
+
+        <div class="field">
+          <div class="field-head"><label for="real">Missed calls that are real job enquiries</label>
+            <span class="num"><input id="real" type="number" inputmode="numeric" min="0" max="100" step="1"><span>%</span></span></div>
+          <p class="hint">The rest are wrong numbers, sales calls and spam.</p>
+          <input type="range" id="real-r" min="10" max="100" step="1" aria-label="Real enquiries slider">
+        </div>
+
+        <div class="field">
+          <div class="field-head"><label for="pickup">Enquiries the voice agent captures</label>
+            <span class="num"><input id="pickup" type="number" inputmode="numeric" min="0" max="100" step="1"><span>%</span></span></div>
+          <p class="hint">It answers, takes name, number and the problem, and answers price questions.</p>
+          <input type="range" id="pickup-r" min="10" max="100" step="1" aria-label="Agent capture rate slider">
+        </div>
+
+        <div class="field">
+          <div class="field-head"><label for="book">Captured enquiries you turn into booked jobs</label>
+            <span class="num"><input id="book" type="number" inputmode="numeric" min="0" max="100" step="1"><span>%</span></span></div>
+          <p class="hint">Depends on how fast you call back.</p>
+          <input type="range" id="book-r" min="5" max="90" step="1" aria-label="Booking rate slider">
+        </div>
+
+        <div class="field">
+          <div class="field-head"><label for="cost">Voice agent cost per month</label>
+            <span class="num"><span>$</span><input id="cost" type="number" inputmode="numeric" min="0" max="5000" step="1"></span></div>
+          <p class="hint">An example subscription price. Change it to match any quote you get.</p>
+          <input type="range" id="cost-r" min="0" max="999" step="1" aria-label="Monthly cost slider">
+        </div>
+      </section>
+    </div>
+
+    <aside class="card results" aria-labelledby="rt" id="results">
+      <div class="kicker" id="rt">Extra revenue you could capture</div>
+      <div class="big" id="r-month" aria-live="polite">$0<small> a month</small></div>
+      <p class="year" id="r-year">about $0 a year</p>
+
+      <div class="stats">
+        <div class="stat"><b id="r-jobs">0</b><span>extra jobs a month</span></div>
+        <div class="stat good"><b id="r-net">$0</b><span>a month after agent cost</span></div>
+        <div class="stat"><b id="r-payback">n/a</b><span>to pay for itself</span></div>
+        <div class="stat"><b id="r-roi">0x</b><span>return on the monthly cost</span></div>
+      </div>
+
+      <table class="funnel" aria-label="How the estimate is worked out">
+        <thead><tr><th>Each month</th><th>Count</th></tr></thead>
+        <tbody>
+          <tr><td>Calls you miss</td><td id="f-missed">0</td></tr>
+          <tr><td>Real job enquiries</td><td id="f-real">0</td></tr>
+          <tr><td>Captured by the agent</td><td id="f-pick">0</td></tr>
+          <tr><td>Booked jobs</td><td id="f-book">0</td></tr>
+        </tbody>
+      </table>
+      <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+      <p class="fine">Booked jobs multiplied by your average job value. This is an estimate from your inputs, not a promise. Real results depend on your calls and how quickly you follow up.</p>
+    </aside>
+  </main>
+
+  <section class="card cta" id="demo" aria-labelledby="ct">
+    <h2 id="ct">Hear it answer a plumbing question</h2>
+    <p class="lead">Try our working voice agent. Ask it about drain cleaning prices, opening hours or an emergency, then ask something it cannot answer and watch it take a callback request. We email you an invite code and a link.</p>
+
+    <form id="lead-form" novalidate>
+      <div class="form-grid">
+        <div><label for="f-name">Your name</label><input id="f-name" type="text" autocomplete="name" maxlength="100" required></div>
+        <div><label for="f-email">Email</label><input id="f-email" type="email" autocomplete="email" maxlength="200" required></div>
+        <div><label for="f-biz">Business name (optional)</label><input id="f-biz" type="text" autocomplete="organization" maxlength="150"></div>
+        <div><label for="f-phone">Phone (optional)</label><input id="f-phone" type="tel" autocomplete="tel" maxlength="40"></div>
+        <div class="hp" aria-hidden="true"><label for="f-web">Leave this empty</label><input id="f-web" type="text" tabindex="-1" autocomplete="off"></div>
+        <div class="full consent"><input id="f-consent" type="checkbox"><label for="f-consent" style="font-weight:400;margin:0">Yes, email me the demo invite and a short follow-up about a free trial. I can unsubscribe at any time. We also keep the numbers I entered above so the follow-up fits my business.</label></div>
+      </div>
+      <p class="err" id="f-err" role="alert"></p>
+      <button class="btn" id="f-btn" type="submit">Send me the demo invite</button>
+    </form>
+
+    <div class="thanks" id="thanks" hidden>
+      <h3>Thanks, you are on the list.</h3>
+      <p id="thanks-msg">We will email your invite code shortly.</p>
+      <p>When it arrives, open <a id="demo-link" href="#" target="_blank" rel="noopener">the voice agent demo</a>, create an account with your code, and click Talk in browser.</p>
+    </div>
+  </section>
+
+  <footer>
+    This calculator gives estimates based on the numbers you enter. It is not a guarantee of results. The voice agent records conversations, and the demo asks for your consent before a call starts.
+  </footer>
+</div>
+
+<div class="mini" id="mini"><div><span class="kicker" style="display:block">Extra revenue</span><b id="mini-val">$0</b><span class="kicker"> a month</span></div><a href="#demo">Try the agent</a></div>
+
+<script src="config.js"></script>
+<script>
+(function () {
+  var cfg = window.CALC_CONFIG || {};
+  var D = cfg.DEFAULTS || { calls: 40, missed: 25, job: 350, real: 60, pickup: 80, book: 40, cost: 199 };
+  var $ = function (id) { return document.getElementById(id); };
+  var keys = ["calls", "missed", "job", "real", "pickup", "book", "cost"];
+  var WEEKS_PER_MONTH = 52 / 12;
+  var usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  var num1 = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
+
+  if (cfg.BRAND) $("brand").textContent = cfg.BRAND;
+  $("demo-link").href = cfg.DEMO_URL || "#";
+
+  function clamp(v, lo, hi) { v = Number(v); if (!isFinite(v)) v = 0; return Math.min(hi, Math.max(lo, v)); }
+  var limits = { calls: [0, 500], missed: [0, 100], job: [0, 20000], real: [0, 100], pickup: [0, 100], book: [0, 100], cost: [0, 5000] };
+
+  function read() {
+    var v = {};
+    keys.forEach(function (k) { v[k] = clamp($(k).value, limits[k][0], limits[k][1]); });
+    return v;
+  }
+
+  // The whole model: each step multiplies the one before it, then weeks are converted to months.
+  function calculate(v) {
+    var missedWeek = v.calls * v.missed / 100;
+    var realWeek = missedWeek * v.real / 100;
+    var pickWeek = realWeek * v.pickup / 100;
+    var bookWeek = pickWeek * v.book / 100;
+    var monthRevenue = bookWeek * v.job * WEEKS_PER_MONTH;
+    var net = monthRevenue - v.cost;
+    var perDay = monthRevenue / 30;
+    return {
+      missedMonth: missedWeek * WEEKS_PER_MONTH,
+      realMonth: realWeek * WEEKS_PER_MONTH,
+      pickMonth: pickWeek * WEEKS_PER_MONTH,
+      bookMonth: bookWeek * WEEKS_PER_MONTH,
+      monthRevenue: monthRevenue,
+      yearRevenue: monthRevenue * 12,
+      net: net,
+      paybackDays: perDay > 0 ? v.cost / perDay : null,
+      roi: v.cost > 0 ? monthRevenue / v.cost : null
+    };
+  }
+
+  function payback(r, cost) {
+    if (cost === 0) return "Free";
+    if (r.paybackDays === null) return "n/a";
+    if (r.paybackDays < 1) return "Under a day";
+    if (r.paybackDays > 365) return "Over a year";
+    var d = Math.round(r.paybackDays);
+    return d + (d === 1 ? " day" : " days");
+  }
+
+  var last = { v: null, r: null };
+  function render() {
+    var v = read(), r = calculate(v);
+    last = { v: v, r: r };
+    $("r-month").innerHTML = usd.format(Math.round(r.monthRevenue)) + "<small> a month</small>";
+    $("r-year").textContent = "about " + usd.format(Math.round(r.yearRevenue)) + " a year";
+    $("r-jobs").textContent = num1.format(r.bookMonth);
+    $("r-net").textContent = usd.format(Math.round(r.net));
+    $("r-payback").textContent = payback(r, v.cost);
+    $("r-roi").textContent = r.roi === null ? "n/a" : num1.format(r.roi) + "x";
+    $("f-missed").textContent = num1.format(r.missedMonth);
+    $("f-real").textContent = num1.format(r.realMonth);
+    $("f-pick").textContent = num1.format(r.pickMonth);
+    $("f-book").textContent = num1.format(r.bookMonth);
+    $("bar").style.width = (r.missedMonth > 0 ? Math.min(100, r.bookMonth / r.missedMonth * 100) : 0) + "%";
+    $("mini-val").textContent = usd.format(Math.round(r.monthRevenue));
+  }
+
+  // Each number box and its slider stay in sync.
+  keys.forEach(function (k) {
+    var box = $(k), slider = $(k + "-r");
+    box.value = D[k]; slider.value = D[k];
+    box.addEventListener("input", function () { slider.value = box.value; render(); });
+    box.addEventListener("blur", function () { box.value = clamp(box.value, limits[k][0], limits[k][1]); render(); });
+    slider.addEventListener("input", function () { box.value = slider.value; render(); });
+  });
+  render();
+
+  // ---------- lead form ----------
+  var form = $("lead-form"), err = $("f-err"), btn = $("f-btn");
+  var EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  function fail(msg, id) { err.textContent = msg; if (id) $(id).focus(); }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    err.textContent = "";
+    var name = $("f-name").value.trim(), email = $("f-email").value.trim();
+    if (!name) return fail("Enter your name.", "f-name");
+    if (!EMAIL.test(email)) return fail("Enter a valid email address, like name@company.com.", "f-email");
+    if (!$("f-consent").checked) return fail("Tick the box so we know it is fine to email you.", "f-consent");
+    if ($("f-web").value) { return showThanks(); } // a bot filled the hidden field: pretend success, store nothing
+    if (!cfg.SUPABASE_URL || !cfg.SUPABASE_KEY) return fail("This form is not connected to a database yet. Please try again later.");
+
+    btn.disabled = true; btn.textContent = "Sending...";
+    var body = {
+      name: name, email: email,
+      business: $("f-biz").value.trim() || null,
+      phone: $("f-phone").value.trim() || null,
+      consent: true,
+      inputs: last.v,
+      results: { month_revenue: Math.round(last.r.monthRevenue), year_revenue: Math.round(last.r.yearRevenue), jobs_month: Math.round(last.r.bookMonth * 10) / 10, net_month: Math.round(last.r.net) },
+      source: cfg.SOURCE || "roi-calculator"
+    };
+    fetch(cfg.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/roi_leads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": cfg.SUPABASE_KEY, "Prefer": "return=minimal" },
+      body: JSON.stringify(body)
+    }).then(function (res) {
+      if (!res.ok) throw new Error("status " + res.status);
+      showThanks();
+    }).catch(function () {
+      btn.disabled = false; btn.textContent = "Send me the demo invite";
+      fail("Something went wrong and your details were not sent. Check your connection and try again.");
+    });
+  });
+
+  function showThanks() {
+    form.hidden = true;
+    $("thanks").hidden = false;
+    $("thanks-msg").textContent = "We will email your invite code to " + $("f-email").value.trim() + " shortly.";
+    $("thanks").scrollIntoView({ block: "nearest" });
+  }
+})();
+</script>
+</body>
+</html>
