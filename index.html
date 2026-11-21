@@ -418,13 +418,13 @@
       $("thanks-next").hidden = true;
       $("demo-btn-row").hidden = false;
     } else if (d.account === "created_no_session") {
-      $("thanks-msg").textContent = "Your demo account is ready. Open the voice agent and sign in with " + $("f-email").value.trim() + " and the password below.";
+      $("thanks-msg").textContent = "Your demo account is ready. Open the voice agent and sign in with " + $("f-email").value.trim() + " and the password below, or choose Quick start and just type your name.";
       $("demo-link2").href = demo;
       $("pw-label").hidden = false; $("code-row").hidden = false; $("code-val").textContent = d.password || "";
       $("thanks-next").hidden = true;
       $("demo-btn-row").hidden = false;
     } else if (d.account === "exists") {
-      $("thanks-msg").textContent = "You already have a demo account with " + $("f-email").value.trim() + ". Open the voice agent and sign in with your password.";
+      $("thanks-msg").textContent = "You already have a demo account with " + $("f-email").value.trim() + ". Open the voice agent and sign in with your password, or choose Quick start and just type your name.";
       $("demo-link2").href = demo;
       $("thanks-next").hidden = true;
       $("demo-btn-row").hidden = false;
